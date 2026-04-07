@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Farm Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-content">
+            <div class="logo">
+                <svg class="plant-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 22v-7m0 0a5 5 0 0 1-5-5c0-3.5 5-8 5-8s5 4.5 5 8a5 5 0 0 1-5 5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Smart Farm</span>
+            </div>
+            <a href="/logout" class="logout-btn">Logout</a>
+        </div>
+    </nav>
+
+    <main class="dashboard">
+        <section class="sensors-grid">
+            <!-- Temperature Card -->
+            <div class="card sensor-card">
+                <div class="sensor-header">
+                    <h3>Temperature</h3>
+                    <div class="icon temp-icon">🌡️</div>
+                </div>
+                <div class="sensor-value">
+                    <span id="temp-val">--</span><span class="unit">°C</span>
+                </div>
+            </div>
+
+            <!-- Humidity Card -->
+            <div class="card sensor-card">
+                <div class="sensor-header">
+                    <h3>Humidity</h3>
+                    <div class="icon hum-icon">💧</div>
+                </div>
+                <div class="sensor-value">
+                    <span id="hum-val">--</span><span class="unit">%</span>
+                </div>
+            </div>
+
+            <!-- Water Level Card -->
+            <div class="card sensor-card water-card">
+                <div class="sensor-header">
+                    <h3>Water Level</h3>
+                    <div class="icon water-icon">🌊</div>
+                </div>
+                <div class="sensor-value">
+                    <span id="water-val">--</span><span class="unit">%</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="water-bar" style="width: 0%;"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="controls-section">
+            <h2>Device Controls</h2>
+            <div class="controls-grid">
+                
+                <div class="card control-card">
+                    <div class="control-info">
+                        <h3>Relay 1</h3>
+                        <p>Generic Load</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="relay1" onchange="toggleDevice('relay1')">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                
+                <div class="card control-card">
+                    <div class="control-info">
+                        <h3>Relay 2</h3>
+                        <p>Generic Load</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="relay2" onchange="toggleDevice('relay2')">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                
+                <div class="card control-card">
+                    <div class="control-info">
+                        <h3>Relay 3</h3>
+                        <p>Generic Load</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="relay3" onchange="toggleDevice('relay3')">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+
+                <div class="card control-card">
+                    <div class="control-info">
+                        <h3>Water Pump</h3>
+                        <p>Irrigation</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="pump" onchange="toggleDevice('pump')">
+                        <span class="slider round pump-slider"></span>
+                    </label>
+                </div>
+
+                <div class="card control-card">
+                    <div class="control-info">
+                        <h3>Light</h3>
+                        <p>Grow Lights</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="light" onchange="toggleDevice('light')">
+                        <span class="slider round light-slider"></span>
+                    </label>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Fetch sensor data every 3 seconds
+        async function fetchSensorData() {
+            try {
+                const response = await fetch('/get_data');
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    document.getElementById('temp-val').textContent = data.temperature;
+                    document.getElementById('hum-val').textContent = data.humidity;
+                    document.getElementById('water-val').textContent = data.water_level;
+                    
+                    // Update water progress bar
+                    const waterBar = document.getElementById('water-bar');
+                    let lvl = data.water_level;
+                    if(lvl > 100) lvl = 100;
+                    if(lvl < 0) lvl = 0;
+                    waterBar.style.width = lvl + "%";
+                }
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            }
+        }
+
+        // Send control command when a switch is toggled
+        async function toggleDevice(device) {
+            const checkbox = document.getElementById(device);
+            const state = checkbox.checked ? 1 : 0;
+            
+            try {
+                const response = await fetch('/control', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ device: device, state: state })
+                });
+                
+                if (!response.ok) {
+                    // Revert UI if request failed
+                    checkbox.checked = !checkbox.checked;
+                    alert("Failed to toggle device");
+                }
+            } catch (error) {
+                console.error("Error toggling device:", error);
+                checkbox.checked = !checkbox.checked;
+            }
+        }
+
+        // Initialize fetching
+        setInterval(fetchSensorData, 3000);
+        fetchSensorData(); // initial fetch
+    </script>
+</body>
+</html>
